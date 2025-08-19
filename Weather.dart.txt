@@ -1,0 +1,963 @@
+import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
+void main() {
+  runApp(WeatherApp());
+}
+
+class WeatherApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Weather App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        fontFamily: 'Roboto',
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: WeatherHome(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+enum WeatherCondition {
+  sunny,
+  cloudy,
+  rainy,
+  stormy,
+  snowy,
+  foggy,
+  windy,
+}
+
+class WeatherData {
+  final String location;
+  final String country;
+  final double temperature;
+  final double feelsLike;
+  final int humidity;
+  final double windSpeed;
+  final int visibility;
+  final int uvIndex;
+  final WeatherCondition condition;
+  final String description;
+  final DateTime lastUpdated;
+
+  WeatherData({
+    required this.location,
+    required this.country,
+    required this.temperature,
+    required this.feelsLike,
+    required this.humidity,
+    required this.windSpeed,
+    required this.visibility,
+    required this.uvIndex,
+    required this.condition,
+    required this.description,
+    required this.lastUpdated,
+  });
+}
+
+class ForecastData {
+  final String day;
+  final WeatherCondition condition;
+  final double highTemp;
+  final double lowTemp;
+  final int chanceOfRain;
+
+  ForecastData({
+    required this.day,
+    required this.condition,
+    required this.highTemp,
+    required this.lowTemp,
+    required this.chanceOfRain,
+  });
+}
+
+class WeatherHome extends StatefulWidget {
+  @override
+  _WeatherHomeState createState() => _WeatherHomeState();
+}
+
+class _WeatherHomeState extends State<WeatherHome>
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late AnimationController _pulseController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _slideAnimation;
+  late Animation<double> _pulseAnimation;
+  
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = false;
+  WeatherData? _currentWeather;
+  List<ForecastData> _forecast = [];
+  String _selectedUnit = 'Celsius';
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAnimations();
+    _loadSampleWeatherData();
+  }
+
+  void _setupAnimations() {
+    _animationController = AnimationController(
+      duration: Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    
+    _pulseController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    _slideAnimation = Tween<double>(begin: 50.0, end: 0.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _animationController.forward();
+    _pulseController.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _pulseController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadSampleWeatherData() {
+    setState(() {
+      _currentWeather = WeatherData(
+        location: 'Mumbai',
+        country: 'India',
+        temperature: 28.5,
+        feelsLike: 32.1,
+        humidity: 78,
+        windSpeed: 12.5,
+        visibility: 8,
+        uvIndex: 6,
+        condition: WeatherCondition.cloudy,
+        description: 'Partly Cloudy',
+        lastUpdated: DateTime.now(),
+      );
+
+      _forecast = [
+        ForecastData(
+          day: 'Today',
+          condition: WeatherCondition.cloudy,
+          highTemp: 30,
+          lowTemp: 25,
+          chanceOfRain: 20,
+        ),
+        ForecastData(
+          day: 'Tomorrow',
+          condition: WeatherCondition.rainy,
+          highTemp: 27,
+          lowTemp: 22,
+          chanceOfRain: 85,
+        ),
+        ForecastData(
+          day: 'Wednesday',
+          condition: WeatherCondition.sunny,
+          highTemp: 32,
+          lowTemp: 26,
+          chanceOfRain: 10,
+        ),
+        ForecastData(
+          day: 'Thursday',
+          condition: WeatherCondition.stormy,
+          highTemp: 25,
+          lowTemp: 20,
+          chanceOfRain: 90,
+        ),
+        ForecastData(
+          day: 'Friday',
+          condition: WeatherCondition.sunny,
+          highTemp: 31,
+          lowTemp: 24,
+          chanceOfRain: 15,
+        ),
+      ];
+    });
+  }
+
+  Future<void> _searchWeather(String location) async {
+    if (location.trim().isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Simulate API delay
+    await Future.delayed(Duration(seconds: 1));
+
+    // Generate random weather data for demo
+    final random = math.Random();
+    final conditions = WeatherCondition.values;
+    final selectedCondition = conditions[random.nextInt(conditions.length)];
+    
+    // Parse location and get country info
+    String cityName;
+    String countryName;
+    
+    if (location.contains(',')) {
+      final parts = location.split(',');
+      cityName = parts.first.trim();
+      countryName = parts.last.trim();
+    } else {
+      cityName = location.trim();
+      countryName = _getCountryForCity(cityName);
+    }
+    
+    setState(() {
+      _currentWeather = WeatherData(
+        location: cityName,
+        country: countryName,
+        temperature: 15.0 + random.nextDouble() * 20.0,
+        feelsLike: 18.0 + random.nextDouble() * 18.0,
+        humidity: 30 + random.nextInt(50),
+        windSpeed: random.nextDouble() * 25.0,
+        visibility: 5 + random.nextInt(15),
+        uvIndex: random.nextInt(11),
+        condition: selectedCondition,
+        description: _getWeatherDescription(selectedCondition),
+        lastUpdated: DateTime.now(),
+      );
+      
+      // Generate random forecast
+      _forecast = List.generate(5, (index) {
+        final days = ['Today', 'Tomorrow', 'Wednesday', 'Thursday', 'Friday'];
+        return ForecastData(
+          day: days[index],
+          condition: conditions[random.nextInt(conditions.length)],
+          highTemp: 20.0 + random.nextDouble() * 15.0,
+          lowTemp: 10.0 + random.nextDouble() * 15.0,
+          chanceOfRain: random.nextInt(100),
+        );
+      });
+      
+      _isLoading = false;
+    });
+
+    _animationController.reset();
+    _animationController.forward();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Weather updated for ${cityName}, ${countryName}')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: _getBackgroundGradient(),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingWidget()
+                    : _currentWeather != null
+                        ? _buildWeatherContent()
+                        : _buildEmptyState(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Search city...',
+                    hintStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.search, color: Colors.white70),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  ),
+                  onSubmitted: _searchWeather,
+                ),
+              ),
+              SizedBox(width: 15),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  if (value == 'celsius' || value == 'fahrenheit') {
+                    setState(() {
+                      _selectedUnit = value == 'celsius' ? 'Celsius' : 'Fahrenheit';
+                    });
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'celsius',
+                    child: Row(
+                      children: [
+                        Icon(Icons.thermostat, size: 18),
+                        SizedBox(width: 8),
+                        Text('Celsius'),
+                        if (_selectedUnit == 'Celsius')
+                          Icon(Icons.check, size: 18, color: Colors.blue),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'fahrenheit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.thermostat, size: 18),
+                        SizedBox(width: 8),
+                        Text('Fahrenheit'),
+                        if (_selectedUnit == 'Fahrenheit')
+                          Icon(Icons.check, size: 18, color: Colors.blue),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, size: 18),
+                        SizedBox(width: 8),
+                        Text('Refresh'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                Icons.cloud_download,
+                size: 60,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+          Text(
+            'Loading weather data...',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.wb_sunny,
+            size: 100,
+            color: Colors.white.withOpacity(0.5),
+          ),
+          SizedBox(height: 20),
+          Text(
+            'Search for a city to get weather',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeatherContent() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Transform.translate(
+        offset: Offset(0, _slideAnimation.value),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            children: [
+              _buildCurrentWeatherCard(),
+              SizedBox(height: 20),
+              _buildDetailsGrid(),
+              SizedBox(height: 20),
+              _buildForecastCard(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentWeatherCard() {
+    if (_currentWeather == null) return SizedBox();
+
+    final temp = _selectedUnit == 'Celsius' 
+        ? _currentWeather!.temperature 
+        : (_currentWeather!.temperature * 9/5) + 32;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.white70, size: 18),
+              SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  '${_currentWeather!.location}, ${_currentWeather!.country}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${temp.toStringAsFixed(0)}°',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 72,
+                      fontWeight: FontWeight.w200,
+                    ),
+                  ),
+                  Text(
+                    _currentWeather!.description,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 18,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Feels like ${_selectedUnit == 'Celsius' ? _currentWeather!.feelsLike.toStringAsFixed(0) : ((_currentWeather!.feelsLike * 9/5) + 32).toStringAsFixed(0)}°',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              ScaleTransition(
+                scale: _pulseAnimation,
+                child: Icon(
+                  _getWeatherIcon(_currentWeather!.condition),
+                  size: 100,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 15),
+          Text(
+            'Last updated: ${_formatTime(_currentWeather!.lastUpdated)}',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsGrid() {
+    if (_currentWeather == null) return SizedBox();
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 15,
+      crossAxisSpacing: 15,
+      childAspectRatio: 1.5,
+      children: [
+        _buildDetailCard(
+          'Humidity',
+          '${_currentWeather!.humidity}%',
+          Icons.water_drop,
+          Colors.blue,
+        ),
+        _buildDetailCard(
+          'Wind Speed',
+          '${_currentWeather!.windSpeed.toStringAsFixed(1)} km/h',
+          Icons.air,
+          Colors.green,
+        ),
+        _buildDetailCard(
+          'Visibility',
+          '${_currentWeather!.visibility} km',
+          Icons.visibility,
+          Colors.orange,
+        ),
+        _buildDetailCard(
+          'UV Index',
+          '${_currentWeather!.uvIndex}',
+          Icons.wb_sunny,
+          Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 30),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildForecastCard() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '5-Day Forecast',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 15),
+          ..._forecast.map((forecast) => _buildForecastItem(forecast)).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildForecastItem(ForecastData forecast) {
+    final highTemp = _selectedUnit == 'Celsius' 
+        ? forecast.highTemp 
+        : (forecast.highTemp * 9/5) + 32;
+    final lowTemp = _selectedUnit == 'Celsius' 
+        ? forecast.lowTemp 
+        : (forecast.lowTemp * 9/5) + 32;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              forecast.day,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Icon(
+            _getWeatherIcon(forecast.condition),
+            color: Colors.white,
+            size: 24,
+          ),
+          SizedBox(width: 15),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(Icons.water_drop, color: Colors.blue, size: 16),
+                SizedBox(width: 4),
+                Text(
+                  '${forecast.chanceOfRain}%',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${lowTemp.toStringAsFixed(0)}° / ${highTemp.toStringAsFixed(0)}°',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  LinearGradient _getBackgroundGradient() {
+    if (_currentWeather == null) {
+      return LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.blue[400]!,
+          Colors.blue[800]!,
+        ],
+      );
+    }
+
+    switch (_currentWeather!.condition) {
+      case WeatherCondition.sunny:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.orange[400]!,
+            Colors.deepOrange[600]!,
+          ],
+        );
+      case WeatherCondition.cloudy:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.blueGrey[400]!,
+            Colors.blueGrey[700]!,
+          ],
+        );
+      case WeatherCondition.rainy:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.indigo[400]!,
+            Colors.indigo[800]!,
+          ],
+        );
+      case WeatherCondition.stormy:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.grey[700]!,
+            Colors.grey[900]!,
+          ],
+        );
+      case WeatherCondition.snowy:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.lightBlue[300]!,
+            Colors.blue[600]!,
+          ],
+        );
+      case WeatherCondition.foggy:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.grey[500]!,
+            Colors.grey[800]!,
+          ],
+        );
+      case WeatherCondition.windy:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.teal[400]!,
+            Colors.teal[700]!,
+          ],
+        );
+      default:
+        return LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.blue[400]!,
+            Colors.blue[800]!,
+          ],
+        );
+    }
+  }
+
+  IconData _getWeatherIcon(WeatherCondition condition) {
+    switch (condition) {
+      case WeatherCondition.sunny:
+        return Icons.wb_sunny;
+      case WeatherCondition.cloudy:
+        return Icons.wb_cloudy;
+      case WeatherCondition.rainy:
+        return Icons.grain;
+      case WeatherCondition.stormy:
+        return Icons.flash_on;
+      case WeatherCondition.snowy:
+        return Icons.ac_unit;
+      case WeatherCondition.foggy:
+        return Icons.foggy;
+      case WeatherCondition.windy:
+        return Icons.air;
+      default:
+        return Icons.wb_sunny;
+    }
+  }
+
+  String _getWeatherDescription(WeatherCondition condition) {
+    switch (condition) {
+      case WeatherCondition.sunny:
+        return 'Sunny';
+      case WeatherCondition.cloudy:
+        return 'Partly Cloudy';
+      case WeatherCondition.rainy:
+        return 'Light Rain';
+      case WeatherCondition.stormy:
+        return 'Thunderstorm';
+      case WeatherCondition.snowy:
+        return 'Snow';
+      case WeatherCondition.foggy:
+        return 'Foggy';
+      case WeatherCondition.windy:
+        return 'Windy';
+      default:
+        return 'Clear';
+    }
+  }
+
+  String _getCountryForCity(String cityName) {
+    // Map of cities to countries for demo purposes
+    final cityCountryMap = {
+      // USA
+      'new york': 'United States',
+      'los angeles': 'United States',
+      'chicago': 'United States',
+      'houston': 'United States',
+      'phoenix': 'United States',
+      'philadelphia': 'United States',
+      'san antonio': 'United States',
+      'san diego': 'United States',
+      'dallas': 'United States',
+      'san jose': 'United States',
+      'miami': 'United States',
+      'boston': 'United States',
+      'seattle': 'United States',
+      'washington': 'United States',
+      'atlanta': 'United States',
+      
+      // India
+      'delhi': 'India',
+      'mumbai': 'India',
+      'bangalore': 'India',
+      'hyderabad': 'India',
+      'pune': 'India',
+      'chennai': 'India',
+      'kolkata': 'India',
+      'ahmedabad': 'India',
+      'jaipur': 'India',
+      'surat': 'India',
+      'lucknow': 'India',
+      'kanpur': 'India',
+      'nagpur': 'India',
+      
+      // UK
+      'london': 'United Kingdom',
+      'manchester': 'United Kingdom',
+      'birmingham': 'United Kingdom',
+      'liverpool': 'United Kingdom',
+      'leeds': 'United Kingdom',
+      'glasgow': 'United Kingdom',
+      'edinburgh': 'United Kingdom',
+      'cardiff': 'United Kingdom',
+      
+      // Australia
+      'sydney': 'Australia',
+      'melbourne': 'Australia',
+      'brisbane': 'Australia',
+      'perth': 'Australia',
+      'adelaide': 'Australia',
+      'darwin': 'Australia',
+      'canberra': 'Australia',
+      
+      // Canada
+      'toronto': 'Canada',
+      'vancouver': 'Canada',
+      'montreal': 'Canada',
+      'calgary': 'Canada',
+      'ottawa': 'Canada',
+      'edmonton': 'Canada',
+      'winnipeg': 'Canada',
+      
+      // Germany
+      'berlin': 'Germany',
+      'hamburg': 'Germany',
+      'munich': 'Germany',
+      'cologne': 'Germany',
+      'frankfurt': 'Germany',
+      'dusseldorf': 'Germany',
+      
+      // France
+      'paris': 'France',
+      'marseille': 'France',
+      'lyon': 'France',
+      'toulouse': 'France',
+      'nice': 'France',
+      'nantes': 'France',
+      
+      // Japan
+      'tokyo': 'Japan',
+      'osaka': 'Japan',
+      'kyoto': 'Japan',
+      'yokohama': 'Japan',
+      'nagoya': 'Japan',
+      'sapporo': 'Japan',
+      
+      // China
+      'beijing': 'China',
+      'shanghai': 'China',
+      'guangzhou': 'China',
+      'shenzhen': 'China',
+      'chengdu': 'China',
+      'wuhan': 'China',
+      
+      // Brazil
+      'sao paulo': 'Brazil',
+      'rio de janeiro': 'Brazil',
+      'brasilia': 'Brazil',
+      'salvador': 'Brazil',
+      'fortaleza': 'Brazil',
+      
+      // Italy
+      'rome': 'Italy',
+      'milan': 'Italy',
+      'naples': 'Italy',
+      'turin': 'Italy',
+      'florence': 'Italy',
+      'venice': 'Italy',
+      
+      // Spain
+      'madrid': 'Spain',
+      'barcelona': 'Spain',
+      'valencia': 'Spain',
+      'seville': 'Spain',
+      'bilbao': 'Spain',
+      
+      // Others
+      'moscow': 'Russia',
+      'dubai': 'United Arab Emirates',
+      'singapore': 'Singapore',
+      'hong kong': 'Hong Kong',
+      'istanbul': 'Turkey',
+      'cairo': 'Egypt',
+      'johannesburg': 'South Africa',
+      'cape town': 'South Africa',
+      'buenos aires': 'Argentina',
+      'mexico city': 'Mexico',
+      'bogota': 'Colombia',
+      'lima': 'Peru',
+      'santiago': 'Chile',
+    };
+    
+    final normalizedCity = cityName.toLowerCase().trim();
+    return cityCountryMap[normalizedCity] ?? 'Unknown';
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+}
