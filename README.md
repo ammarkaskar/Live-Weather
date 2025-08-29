@@ -1,7 +1,6 @@
 # Live Weather 🌦️
 
 A modern and minimal Flutter weather app that provides real-time weather updates using the OpenWeather API.
-
 ## ✨ Features
 - 🌍 Get live weather for any city
 - 📍 Detects location-based weather
